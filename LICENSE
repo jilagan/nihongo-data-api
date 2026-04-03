@@ -1,0 +1,24 @@
+Creative Commons Attribution-ShareAlike 4.0 International
+
+Copyright (c) 2026 Archmob Pte Ltd
+
+This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License. To view a copy of this license, visit:
+https://creativecommons.org/licenses/by-sa/4.0/
+
+---
+
+This repository includes or serves data derived from the following sources:
+
+KANJI DATA (JMdict/EDRDG)
+  Source: https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project
+  Author: Electronic Dictionary Research and Development Group (EDRDG)
+  License: Creative Commons Attribution-ShareAlike 4.0 International
+  The JMdict/EDICT project is the copyright of the EDRDG, and is used in
+  conformance with the Group's licence.
+
+STROKE ORDER DATA (KanjiVG)
+  Source: https://github.com/KanjiVG/kanjivg
+  Author: Ulrich Apel
+  License: Creative Commons Attribution-ShareAlike 3.0 Unported
+  https://creativecommons.org/licenses/by-sa/3.0/
