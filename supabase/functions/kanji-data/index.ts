@@ -1,63 +1,33 @@
 /**
- * kanji-data — serves the JMdict-derived kanji dataset
- *
- * Data source: JMdict/EDRDG (CC BY-SA 4.0)
- * https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project
- *
- * This function is part of nihongo-data-api, published under CC BY-SA 4.0
- * to comply with the share-alike requirements of JMdict.
+ * kanji-data — JMdict-derived kanji dataset (CC BY-SA 4.0)
+ * https://github.com/jilagan/nihongo-data-api
  */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
+const STORAGE_URL =
+  "https://fltusorahxjvsdjaspgy.supabase.co/storage/v1/object/public/nihongo-public-data/kanji-data/v1/kanji.json";
 
-const STORAGE_BUCKET = "nihongo-public-data";
-const STORAGE_PATH = "kanji-data/v1/kanji.json";
-const CACHE_MAX_AGE = 86400; // 1 day
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+serve(async (_req: Request) => {
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .download(STORAGE_PATH);
-
-    if (error || !data) {
-      console.error("Storage fetch error:", error);
+    const upstream = await fetch(STORAGE_URL);
+    if (!upstream.ok) {
       return new Response(JSON.stringify({ error: "Data unavailable" }), {
-        status: 503,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 503, headers: { "Content-Type": "application/json" },
       });
     }
-
-    const json = await data.text();
-
-    return new Response(json, {
+    const text = await upstream.text();
+    return new Response(text, {
       headers: {
-        ...corsHeaders,
         "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": `public, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=604800`,
-        "X-Data-Source": "JMdict/EDRDG CC BY-SA 4.0 — https://www.edrdg.org/",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=86400",
         "X-License": "CC BY-SA 4.0",
+        "X-Data-Source": "JMdict/EDRDG https://www.edrdg.org/",
       },
     });
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    return new Response(JSON.stringify({ error: "Internal error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
 });

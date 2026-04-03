@@ -1,81 +1,60 @@
 /**
- * kanji-stroke — proxies KanjiVG stroke order SVG data
- *
- * Data source: KanjiVG by Ulrich Apel (CC BY-SA 3.0)
- * https://github.com/KanjiVG/kanjivg
- *
- * This function is part of nihongo-data-api, published under CC BY-SA 4.0
- * to comply with the share-alike requirements of KanjiVG.
- *
- * Usage: GET /functions/v1/kanji-stroke?char=漢
- *        GET /functions/v1/kanji-stroke?hex=6f22
+ * kanji-stroke — KanjiVG stroke order SVG proxy (CC BY-SA 3.0)
+ * https://github.com/jilagan/nihongo-data-api
+ * Usage: GET ?char=<kanji>  or  GET ?hex=<5-digit hex>
  */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const KANJIVG_BASE = "https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji";
-const CACHE_MAX_AGE = 604800; // 7 days — stroke data is stable
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-Deno.serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("", { headers: { "Access-Control-Allow-Origin": "*" } });
   }
 
   const url = new URL(req.url);
-  let hex: string | null = url.searchParams.get("hex");
+  let hex: string | null = null;
 
-  if (!hex) {
+  const hexParam = url.searchParams.get("hex");
+  if (hexParam) {
+    hex = hexParam.padStart(5, "0");
+  } else {
     const char = url.searchParams.get("char");
-    if (!char) {
-      return new Response(JSON.stringify({ error: "Missing ?char or ?hex param" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (char) {
+      const cp = char.codePointAt(0);
+      if (cp !== undefined) hex = cp.toString(16).padStart(5, "0");
     }
-    const codePoint = char.codePointAt(0);
-    if (!codePoint) {
-      return new Response(JSON.stringify({ error: "Invalid character" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    hex = codePoint.toString(16).padStart(5, "0");
   }
 
-  const svgUrl = `${KANJIVG_BASE}/${hex}.svg`;
+  if (!hex) {
+    return new Response(JSON.stringify({ error: "Missing ?char or ?hex" }), {
+      status: 400, headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
-    const upstream = await fetch(svgUrl, {
+    const upstream = await fetch(`${KANJIVG_BASE}/${hex}.svg`, {
       headers: { "User-Agent": "nihongo-data-api/1.0" },
     });
-
     if (!upstream.ok) {
-      return new Response(JSON.stringify({ error: "Stroke data not found", hex }), {
+      return new Response(JSON.stringify({ error: "Not found", hex }), {
         status: upstream.status === 404 ? 404 : 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       });
     }
-
     const svg = await upstream.text();
-
     return new Response(svg, {
       headers: {
-        ...corsHeaders,
         "Content-Type": "image/svg+xml; charset=utf-8",
-        "Cache-Control": `public, max-age=${CACHE_MAX_AGE}`,
-        "X-Data-Source": "KanjiVG by Ulrich Apel — CC BY-SA 3.0 — https://github.com/KanjiVG/kanjivg",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=604800",
         "X-License": "CC BY-SA 3.0",
-        "X-Kanji-Hex": hex,
+        "X-Data-Source": "KanjiVG by Ulrich Apel https://github.com/KanjiVG/kanjivg",
       },
     });
-  } catch (err) {
-    console.error("Upstream fetch error:", err);
-    return new Response(JSON.stringify({ error: "Upstream unavailable" }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
 });
